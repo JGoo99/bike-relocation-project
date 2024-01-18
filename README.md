@@ -55,17 +55,17 @@
 >
 > Gradle - Groovy
 >
-> JPA
+> MariaDB, JPA
 >
-> MariaDB
->
-> Spring Security
-> 
-> JWT
+> Spring Security, JWT
 >
 > Lombok
 > 
 > Gson
+> 
+> Redis
+> 
+> Scheduler
 >
 > Validation
 
@@ -139,7 +139,6 @@
 ## 추가구현 예정
 
 ### 유저(재배치 기사)의 재배치 예약
-
 유저는 밀집된 대여소, 거치율이 낮은 대여소, 재배치할 자전거의 개수를 선택하고  재배치를 예약할 수 있다.
 
 ```text
@@ -149,6 +148,16 @@
 - 방지 : 선택한 자전거 개수 < 총 거치된 자전거 개수, 거치율이 낮은 대여소에 가져다놓을 때 거치율 ≤ 100%
 ```
 
+### 밀집 대여소의 재배치 예정정보 목록
+밀집 대여소의 재배치 예정 목록을 조회할 수 있다.
+
+```
+- GET “/api/relocation-plan
+- Param : 대여소 아이디
+- 실패 : 권한이 없는 경우, 각 대여소 id가 없는 경우
+- 성공 응답 : ResponseEntity.ok(Page<RelocationPlanDto>) [유저명, 유저전화번호, 도착예정대여소id, 재배치할 자전거 개수, 재배치예정일자, 재배치여부, 등록일자, 수정일자]
+```
+
 ### 대여소의 상세정보를 보여줄 때 카카오맵 api 를 활용하여 지도띄우기
 세부계획 미정
 
@@ -156,12 +165,12 @@
 
 ## 구현 순서
 
-<img src="https://github.com/JGoo99/bike-relocation-project/assets/126454114/65b99f28-f933-4d04-8103-bb212bea2587" width="100%">
+<img src="https://github.com/JGoo99/bike-relocation-project/assets/126454114/3dbb6e09-a949-4bd1-8f3c-d6a3050a1d2b" width="100%">
 
 <br/>
 
 ## ERD
 
-<img src="https://github.com/JGoo99/bike-relocation-project/assets/126454114/602362a2-9a8c-4eb4-a004-80b9cc804266" width="100%">
+<img src="https://github.com/JGoo99/bike-relocation-project/assets/126454114/c3715eaa-ce7f-4eba-b317-548d98be971e" width="100%">
 
 
