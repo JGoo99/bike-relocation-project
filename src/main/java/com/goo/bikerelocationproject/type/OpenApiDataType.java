@@ -7,7 +7,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum OpenApiDataType {
 
-  BIKE_LIST("bikeLis"),
+  BIKE_LIST("bikeList"),
   BIKE_STATION_MASTER("bikeStationMaster");
 
   private final String data;

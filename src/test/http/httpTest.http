@@ -1,0 +1,2 @@
+### StationOpenApiController - getOpenApiData()
+POST http://localhost:8080/api/open-api

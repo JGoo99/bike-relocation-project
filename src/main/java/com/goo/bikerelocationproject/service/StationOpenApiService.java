@@ -7,5 +7,5 @@ public interface StationOpenApiService {
   ParsingResultDto getOpenApiData();
   int saveBikeListData();
   int saveBikeStationMasterData();
-  String getJsonString(String a, int b, int c);
+  String getJsonString(String dataType, int start, int end);
 }
