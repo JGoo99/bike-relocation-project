@@ -16,7 +16,7 @@ public class StationOpenApiController {
   private final StationOpenApiServiceImpl stationApiService;
 
   @PostMapping("/open-api")
-  public ResponseEntity<ParsingResultDto> getOpenApiData() {
+  public ResponseEntity<ParsingResultDto> saveOpenApiData() {
 
     ParsingResultDto parsingResult = stationApiService.getOpenApiData();
 

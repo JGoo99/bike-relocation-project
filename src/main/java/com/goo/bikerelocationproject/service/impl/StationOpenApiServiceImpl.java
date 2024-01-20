@@ -1,182 +1,163 @@
 package com.goo.bikerelocationproject.service.impl;
 
+import static com.goo.bikerelocationproject.type.ErrorCode.OPEN_API_ERROR;
+import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_LIST;
+import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_STATION_MASTER;
+
 import com.goo.bikerelocationproject.data.dto.BikeListApiDto;
 import com.goo.bikerelocationproject.data.dto.BikeStationMasterApiDto;
 import com.goo.bikerelocationproject.data.dto.ParsingResultDto;
 import com.goo.bikerelocationproject.data.dto.StatusApiDto;
 import com.goo.bikerelocationproject.data.entity.Station;
+import com.goo.bikerelocationproject.exception.OpenApiException;
+import com.goo.bikerelocationproject.exception.StationException;
 import com.goo.bikerelocationproject.repository.StationRepo;
 import com.goo.bikerelocationproject.service.StationOpenApiService;
+import com.goo.bikerelocationproject.type.OpenApiDataType;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @RequiredArgsConstructor
 public class StationOpenApiServiceImpl implements StationOpenApiService {
 
-  @Value("${bike-list-api-key}")
-  private String apiKey;
-
   private final StationRepo stationRepo;
 
-  HttpURLConnection con = null;
-  StringBuilder sb = null;
-  Gson gson = null;
-  URL url = null;
+  @Value("${bike-list-api-key}")
+  private String apiKey;
 
   @Override
   public ParsingResultDto getOpenApiData() {
 
     ParsingResultDto result = new ParsingResultDto();
-
-    getBikeListData(result);
-    getBikeStationMasterData(result);
+    result.setBikeListTotalCount(saveBikeListData());
+    result.setSavedBikeStationMasterTotalCount(saveBikeStationMasterData());
 
     return result;
   }
 
   @Override
-  public void getBikeListData(ParsingResultDto result) {
+  public int saveBikeListData() {
+    int bikeListTotalCount = 0;
+
     int pageNum = 0;
     boolean isRemain = true;
 
     List<Station> stations = new ArrayList<>();
-    while (isRemain) {
-      int start = 1000 * pageNum++ + 1;
-      int end = 1000 * pageNum;
+    JsonObject objData = null;
+    try {
+      while (isRemain) {
+        int start = 1000 * pageNum++ + 1;
+        int end = 1000 * pageNum;
 
-      String baseUrl = getBaseUrl("bikeList", start, end);
-      sb = new StringBuilder();
-      try {
-        url = new URL(baseUrl);
-        con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("GET");
-        con.setRequestProperty("Content-type", "application/json");
-        con.setDoOutput(true);
+        Gson gson = new Gson();
+        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_LIST.getData(), start, end));
+        JsonObject data = (JsonObject) objData.get("rentBikeStatus");
+        JsonArray jsonArray = (JsonArray) data.get("row");
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
-        while (br.ready()) {
-          sb.append(br.readLine());
+        int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
+        if (listTotalCount < 1000) {
+          isRemain = false;
         }
-        con.disconnect();
+        bikeListTotalCount += listTotalCount;
 
-      } catch (Exception e) {
-        e.printStackTrace();
+        for (int i = 0; i < jsonArray.size(); i++) {
+          BikeListApiDto bikeListApiDto = gson.fromJson(jsonArray.get(i), BikeListApiDto.class);
+          stations.add(BikeListApiDto.toEntity(bikeListApiDto));
+        }
       }
-      gson = new Gson();
+    } catch (Exception e) {
 
-      JsonObject objData = (JsonObject) new JsonParser().parse(sb.toString());
-      JsonObject data = (JsonObject) objData.get("rentBikeStatus");
-      JsonObject statusInfo = (JsonObject) data.get("RESULT");
-      JsonArray jsonArray = (JsonArray) data.get("row");
-
-      int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
-      if (listTotalCount < 1000) {
-        isRemain = false;
-      }
-
-      StatusApiDto statusApiDto = gson.fromJson(statusInfo, StatusApiDto.class);
-      result.setBikeListTotalCount(result.getBikeListTotalCount() + listTotalCount);
-      result.getCode().add("[bikeList]: " +  statusApiDto.getCode());
-      result.getMessage().add("[bikeList]: " + statusApiDto.getMessage());
-
-      for (int i = 0; i < jsonArray.size(); i++) {
-        BikeListApiDto bikeListApiDto = gson.fromJson(jsonArray.get(i), BikeListApiDto.class);
-        stations.add(BikeListApiDto.toEntity(bikeListApiDto));
-      }
+      throwException(objData, BIKE_LIST);
     }
     stationRepo.saveAll(stations);
+
+    return bikeListTotalCount;
   }
 
   @Override
-  public void getBikeStationMasterData(ParsingResultDto result) {
+  public int saveBikeStationMasterData() {
+    int bikeStationMasterTotalCount = 0;
+
     int pageNum = 0;
     boolean isRemain = true;
 
-    while (isRemain) {
-      int start = 1000 * pageNum++ + 1;
-      int end = 1000 * pageNum;
+    JsonObject objData = null;
+    try {
+      while (isRemain) {
+        int start = 1000 * pageNum++ + 1;
+        int end = 1000 * pageNum;
 
-      String baseUrl = getBaseUrl("bikeStationMaster", start, end);
-      sb = new StringBuilder();
-      try {
-        url = new URL(baseUrl);
-        con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("GET");
-        con.setRequestProperty("Content-type", "application/json");
-        con.setDoOutput(true);
+        Gson gson = new Gson();
+        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_STATION_MASTER.getData(), start, end));
+        JsonObject data = (JsonObject) objData.get("bikeStationMaster");
+        JsonArray jsonArray = (JsonArray) data.get("row");
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
-        while (br.ready()) {
-          sb.append(br.readLine());
+        int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
+        if (listTotalCount < end) {
+          isRemain = false;
         }
-        con.disconnect();
 
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      gson = new Gson();
+        for (int i = 0; i < jsonArray.size(); i++) {
+          BikeStationMasterApiDto bikeStationMasterApiDto =
+              gson.fromJson(jsonArray.get(i), BikeStationMasterApiDto.class);
 
-      JsonObject objData = (JsonObject) new JsonParser().parse(sb.toString());
-      JsonObject data = (JsonObject) objData.get("bikeStationMaster");
-      JsonObject statusInfo = (JsonObject) data.get("RESULT");
-      JsonArray jsonArray = (JsonArray) data.get("row");
+          Optional<Station> station =
+              stationRepo.findById(
+                  Long.valueOf(bikeStationMasterApiDto.getStationId().substring(3)));
 
-      int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
-      if (listTotalCount < end) {
-        isRemain = false;
-      }
-
-      StatusApiDto statusApiDto = gson.fromJson(statusInfo, StatusApiDto.class);
-      result.getCode().add("[bikeStationMaster]: " + statusApiDto.getCode());
-      result.getMessage().add("[bikeStationMaster]: " + statusApiDto.getMessage());
-
-      int savedDataCount = 0;
-      for (int i = 0; i < jsonArray.size(); i++) {
-        BikeStationMasterApiDto bikeStationMasterApiDto =
-            gson.fromJson(jsonArray.get(i), BikeStationMasterApiDto.class);
-
-        Optional<Station> station =
-            stationRepo.findById(
-                Long.valueOf(bikeStationMasterApiDto.getStationId().substring(3)));
-
-        if (station.isPresent()) {
-          Station selectedStation = station.get();
-          selectedStation.setAddress1(bikeStationMasterApiDto.getAddress1());
-          selectedStation.setAddress2(bikeStationMasterApiDto.getAddress2());
-          stationRepo.save(selectedStation);
-          savedDataCount++;
+          if (station.isPresent()) {
+            Station selectedStation = station.get();
+            selectedStation.setAddress1(bikeStationMasterApiDto.getAddress1());
+            selectedStation.setAddress2(bikeStationMasterApiDto.getAddress2());
+            stationRepo.save(selectedStation);
+            bikeStationMasterTotalCount++;
+          }
         }
       }
-      result.setSavedBikeStationMasterTotalCount(result.getSavedBikeStationMasterTotalCount() + savedDataCount);
+    } catch (Exception e) {
+
+      throwException(objData, BIKE_STATION_MASTER);
     }
+    return bikeStationMasterTotalCount;
   }
 
-  String getBaseUrl(String dataType, int start, int end) {
-    StringBuilder baseUrl = new StringBuilder();
+  void throwException(JsonObject objData, OpenApiDataType openApiDataType) {
+    if (objData != null) {
+      Gson gson = new Gson();
+      JsonObject statusInfo = (JsonObject) objData.get("RESULT");
+      StatusApiDto statusApiDto = gson.fromJson(statusInfo, StatusApiDto.class);
+      throw new OpenApiException(openApiDataType, statusApiDto.getCode(), statusApiDto.getMessage());
+    }
 
-    baseUrl.append("http://openapi.seoul.go.kr:8088/");
-    baseUrl.append(apiKey);
-    baseUrl.append("/json/");
-    baseUrl.append(dataType);
-    baseUrl.append("/");
-    baseUrl.append(start);
-    baseUrl.append("/");
-    baseUrl.append(end);
-    baseUrl.append("/");
+    throw new StationException(OPEN_API_ERROR);
+  }
 
-    return baseUrl.toString();
+  @Override
+  public String getJsonString(String dataType, int start, int end) {
+
+    URI uri = UriComponentsBuilder
+        .fromUriString("http://openapi.seoul.go.kr:8088/")
+        .path("/{apiKey}/json/{dataType}/{start}/{end}/")
+        .encode()
+        .build()
+        .expand(apiKey, dataType, start, end)
+        .toUri();
+
+    RestTemplate restTemplate = new RestTemplate();
+    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
+    return response.getBody();
   }
 }
