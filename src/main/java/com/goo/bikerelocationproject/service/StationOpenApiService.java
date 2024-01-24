@@ -4,8 +4,9 @@ import com.goo.bikerelocationproject.data.dto.ParsingResultDto;
 
 public interface StationOpenApiService {
 
-  ParsingResultDto getOpenApiData();
+  ParsingResultDto saveOpenApiData();
   int saveBikeListData();
   int saveBikeStationMasterData();
-  String getJsonString(String a, int b, int c);
+  String getJsonString(String dataType, int start, int end);
+  void saveBikeParkingData();
 }

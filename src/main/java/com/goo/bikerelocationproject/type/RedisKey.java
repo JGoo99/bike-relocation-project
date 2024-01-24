@@ -5,9 +5,9 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public enum ErrorCode {
+public enum RedisKey {
 
-  OPEN_API_ERROR("open-api: 데이터 저장에 실패했습니다.");
+  REDIS_STATION("station");
 
-  private final String description;
+  private final String key;
 }

@@ -15,12 +15,12 @@ import lombok.Setter;
 @Builder
 public class OpenApiException extends RuntimeException {
 
-  private OpenApiDataType openApiDataType;
+  private String openApiDataType;
   private String code;
   private String message;
 
   public OpenApiException(OpenApiDataType openApiDataType, StatusApiDto statusApiDto) {
-    this.openApiDataType = openApiDataType;
+    this.openApiDataType = openApiDataType.getData();
     this.code = statusApiDto.getCode();
     this.message = statusApiDto.getMessage();
   }

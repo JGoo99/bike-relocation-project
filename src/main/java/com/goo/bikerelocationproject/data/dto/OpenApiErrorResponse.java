@@ -13,6 +13,7 @@ import lombok.Setter;
 @Builder
 public class OpenApiErrorResponse {
 
+  private String dataType;
   private String errorCode;
   private String errorMessage;
 }

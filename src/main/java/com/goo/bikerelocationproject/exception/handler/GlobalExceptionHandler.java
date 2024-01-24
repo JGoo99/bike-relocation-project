@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
   public OpenApiErrorResponse handleOpenApiException(OpenApiException e) {
     LOGGER.error("[open-api error]: " + e);
 
-    return new OpenApiErrorResponse(e.getCode(), e.getMessage());
+    return new OpenApiErrorResponse(e.getOpenApiDataType(), e.getCode(), e.getMessage());
   }
 
   @ExceptionHandler(StationException.class)
