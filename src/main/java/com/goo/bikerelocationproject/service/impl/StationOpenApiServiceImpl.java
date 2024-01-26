@@ -8,7 +8,7 @@ import static com.goo.bikerelocationproject.type.RedisKey.REDIS_STATION;
 
 import com.goo.bikerelocationproject.data.dto.BikeListApiDto;
 import com.goo.bikerelocationproject.data.dto.BikeParkingInfoApiDto;
-import com.goo.bikerelocationproject.data.dto.BikeParkingInfoDto;
+import com.goo.bikerelocationproject.data.dto.BikeParkingInfoRedisDto;
 import com.goo.bikerelocationproject.data.dto.BikeStationMasterApiDto;
 import com.goo.bikerelocationproject.data.dto.ParsingResultDto;
 import com.goo.bikerelocationproject.data.dto.StatusApiDto;
@@ -22,22 +22,20 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
@@ -45,9 +43,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
   private final StationRepo stationRepo;
   private final RedisTemplate<String, String> redisTemplate;
-
-  @Value("${bike-list-api-key}")
-  private String apiKey;
+  private final WebClient webClient;
 
   @Override
   public ParsingResultDto saveOpenApiData() {
@@ -74,7 +70,8 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
         int end = 1000 * pageNum;
 
         Gson gson = new Gson();
-        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_LIST.getData(), start, end));
+        objData = (JsonObject) JsonParser.parseString(
+            Objects.requireNonNull(getJsonString(BIKE_LIST.getData(), start, end).block()));
         JsonObject data = (JsonObject) objData.get("rentBikeStatus");
         JsonArray jsonArray = (JsonArray) data.get("row");
 
@@ -112,7 +109,8 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
         int end = 1000 * pageNum;
 
         Gson gson = new Gson();
-        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_STATION_MASTER.getData(), start, end));
+        objData = (JsonObject) JsonParser.parseString(
+            Objects.requireNonNull(getJsonString(BIKE_STATION_MASTER.getData(), start, end).block()));
         JsonObject data = (JsonObject) objData.get("bikeStationMaster");
         JsonArray jsonArray = (JsonArray) data.get("row");
 
@@ -160,7 +158,8 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
         int end = 1000 * pageNum;
 
         Gson gson = new Gson();
-        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_LIST.getData(), start, end));
+        objData = (JsonObject) JsonParser.parseString(
+            Objects.requireNonNull(getJsonString(BIKE_LIST.getData(), start, end).block()));
         JsonObject data = (JsonObject) objData.get("rentBikeStatus");
         JsonArray jsonArray = (JsonArray) data.get("row");
 
@@ -173,8 +172,8 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
           BikeParkingInfoApiDto bikeParkingInfoApiDto =
               gson.fromJson(jsonArray.get(i), BikeParkingInfoApiDto.class);
 
-          BikeParkingInfoDto bikeParkingInfoDto = BikeParkingInfoDto.fromApiDto(bikeParkingInfoApiDto);
-          set.add(TypedTuple.of(bikeParkingInfoDto.toJson(), bikeParkingInfoDto.getBikeParkingRate()));
+          BikeParkingInfoRedisDto bikeParkingInfoRedisDto = BikeParkingInfoRedisDto.fromApiDto(bikeParkingInfoApiDto);
+          set.add(TypedTuple.of(bikeParkingInfoRedisDto.getStationId(), bikeParkingInfoRedisDto.getBikeParkingRate()));
         }
       }
     } catch (Exception e) {
@@ -197,18 +196,14 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
   }
 
   @Override
-  public String getJsonString(String dataType, int start, int end) {
+  public Mono<String> getJsonString(String dataType, int start, int end) {
 
-    URI uri = UriComponentsBuilder
-        .fromUriString("http://openapi.seoul.go.kr:8088/")
-        .path("/{apiKey}/json/{dataType}/{start}/{end}/")
-        .encode()
-        .build()
-        .expand(apiKey, dataType, start, end)
-        .toUri();
-
-    RestTemplate restTemplate = new RestTemplate();
-    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
-    return response.getBody();
+    return webClient.get().uri(uriBuilder ->
+            uriBuilder
+                .pathSegment(dataType, String.valueOf(start), String.valueOf(end))
+                .path("/")
+                .build())
+        .retrieve()
+        .bodyToMono(String.class);
   }
 }
