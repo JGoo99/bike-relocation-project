@@ -11,7 +11,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class OpenApiErrorResponse {
+public class ApiErrorResponse {
 
   private String dataType;
   private String errorCode;

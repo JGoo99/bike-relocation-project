@@ -4,23 +4,19 @@ import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_LIST;
 import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_STATION_MASTER;
 import static com.goo.bikerelocationproject.type.RedisKey.REDIS_STATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-import com.goo.bikerelocationproject.data.dto.BikeListApiDto;
-import com.goo.bikerelocationproject.data.dto.BikeParkingInfoApiDto;
-import com.goo.bikerelocationproject.data.dto.BikeParkingInfoRedisDto;
-import com.goo.bikerelocationproject.data.dto.BikeStationMasterApiDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
+import com.goo.bikerelocationproject.data.dto.BikeParkingInfoDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
 import com.goo.bikerelocationproject.data.entity.Station;
 import com.goo.bikerelocationproject.repository.StationRepo;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +28,6 @@ import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 @SpringBootTest
 @Transactional
@@ -48,23 +43,18 @@ class StationOpenApiRedisServiceImplTest {
   private WebClient webClient;
 
   @Test
-  @DisplayName("DB 파싱[BikeListDtoJson -> Station]")
-  void getBikeListData() {
+  @DisplayName("성공: DB 파싱[BikeListDtoJson -> Station]")
+  void success_getBikeListData() {
     // given
     // when
-    Gson gson = new Gson();
     List<Station> stations = new ArrayList<>();
+    BikeListDto bikeListDto = getBikeListApiData(BIKE_LIST.getData(), 1, 5);
 
-    JsonObject objData = (JsonObject) JsonParser.parseString(
-        Objects.requireNonNull(getData(BIKE_LIST.getData(), 1, 5).block()));
-    JsonObject data = (JsonObject) objData.get("rentBikeStatus");
-    JsonArray jsonArray = (JsonArray) data.get("row");
-
-    int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
-
-    for (int i = 0; i < jsonArray.size(); i++) {
-      BikeListApiDto bikeListApiDto = gson.fromJson(jsonArray.get(i), BikeListApiDto.class);
-      stations.add(BikeListApiDto.toEntity(bikeListApiDto));
+    int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
+    List<BikeListRowResponse> bikeListRowRespons = bikeListDto.getRentBikeStatus()
+        .getRow();
+    for (BikeListRowResponse bikeListRowResponse : bikeListRowRespons) {
+      stations.add(Station.fromApiDto(bikeListRowResponse));
     }
 
     // then
@@ -75,30 +65,42 @@ class StationOpenApiRedisServiceImplTest {
   }
 
   @Test
-  @DisplayName("DB 파싱[BikeStationMasterJson -> Station]")
-  void getBikeStationMasterData() {
+  @DisplayName("실패: DB 파싱[BikeListDtoJson -> Station]")
+  void fail_getBikeListData() {
+    // given
+    // when
+    BikeListDto bikeListDto = getBikeListApiData(BIKE_LIST.getData(), 1, -1);
 
+    // then
+    assertNull(bikeListDto.getRentBikeStatus());
+    assertEquals(bikeListDto.getResult().getCode(), "ERROR-334");
+    assertEquals(bikeListDto.getResult().getMessage(), "요청종료위치 보다 요청시작위치가 더 큽니다.\n"
+        + "요청시작위치 정수 값은 요청종료위치 정수 값보다 같거나 작아야 합니다.");
+  }
+
+  @Test
+  @DisplayName("성공: DB 파싱[BikeStationMasterJson -> Station]")
+  void success_getBikeStationMasterData() {
     // given
     Station station = Station.builder().id(10L).build();
     stationRepo.save(station);
 
     // when
-    Gson gson = new Gson();
-    JsonObject objData = (JsonObject) JsonParser.parseString(
-        Objects.requireNonNull(getData(BIKE_STATION_MASTER.getData(), 1, 5).block()));
-    JsonObject data = (JsonObject) objData.get("bikeStationMaster");
-    JsonArray jsonArray = (JsonArray) data.get("row");
+    BikeStationMasterDto bikeStationMasterApiDto = getBikeStationMaterData(
+        BIKE_STATION_MASTER.getData(), 1, 1);
 
-    int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
+    int listTotalCount = bikeStationMasterApiDto.getBikeStationMaster().getListTotalCount();
 
-    BikeStationMasterApiDto bikeStationMasterApiDto =
-        gson.fromJson(jsonArray.get(0), BikeStationMasterApiDto.class);
+    List<BikeStationMasterRowResponse> dataList = bikeStationMasterApiDto.getBikeStationMaster()
+        .getRow();
 
     Optional<Station> st = stationRepo.findById(10L);
     if (st.isPresent()) {
       Station selectedStation = st.get();
-      selectedStation.setAddress1(bikeStationMasterApiDto.getAddress1());
-      selectedStation.setAddress2(bikeStationMasterApiDto.getAddress2());
+      selectedStation.setAddress1(dataList.get(0).getAddress1());
+      selectedStation.setAddress2(dataList.get(0).getAddress2());
+
+      stationRepo.save(selectedStation);
     }
 
     Optional<Station> savedStation = stationRepo.findById(10L);
@@ -111,25 +113,34 @@ class StationOpenApiRedisServiceImplTest {
   }
 
   @Test
+  @DisplayName("실패: DB 파싱[BikeListDtoJson -> Station]")
+  void fail_getBikeStationMasterData() {
+    // given
+    // when
+    BikeStationMasterDto bikeStationMasterDto = getBikeStationMaterData(
+        BIKE_STATION_MASTER.getData(), 1, -1);
+
+    // then
+    assertNull(bikeStationMasterDto.getBikeStationMaster());
+    assertEquals(bikeStationMasterDto.getResult().getCode(), "ERROR-334");
+    assertEquals(bikeStationMasterDto.getResult().getMessage(),
+        "요청종료위치 보다 요청시작위치가 더 큽니다.\n"
+            + "요청시작위치 정수 값은 요청종료위치 정수 값보다 같거나 작아야 합니다.");
+  }
+
+  @Test
   @DisplayName("Redis 파싱[BikeListJson -> redis]")
   void getBikeListRedisData() {
     // given
     ZSetOperations<String, String> operations = redisTemplate.opsForZSet();
     Set<TypedTuple<String>> set = new HashSet<>();
 
-    Gson gson = new Gson();
-    JsonObject objData = (JsonObject) JsonParser.parseString(
-        Objects.requireNonNull(getData(BIKE_LIST.getData(), 1, 5).block()));
-    JsonObject data = (JsonObject) objData.get("rentBikeStatus");
-    JsonArray jsonArray = (JsonArray) data.get("row");
+    BikeListDto bikeListDto = getBikeListApiData(BIKE_LIST.getData(), 1, 5);
 
     // when
-    for (int i = 0; i < jsonArray.size(); i++) {
-      BikeParkingInfoApiDto bikeParkingInfoApiDto =
-          gson.fromJson(jsonArray.get(i), BikeParkingInfoApiDto.class);
-
-      BikeParkingInfoRedisDto bikeParkingInfoRedisDto = BikeParkingInfoRedisDto.fromApiDto(bikeParkingInfoApiDto);
-      set.add(TypedTuple.of(bikeParkingInfoRedisDto.getStationId(), bikeParkingInfoRedisDto.getBikeParkingRate()));
+    List<BikeListRowResponse> dataList = bikeListDto.getRentBikeStatus().getRow();
+    for (BikeListRowResponse data : dataList) {
+      set.add(TypedTuple.of(data.getStationId().substring(3), data.getBikeParkingRate()));
     }
 
     Long count = operations.add(REDIS_STATION.getKey(), set);
@@ -140,68 +151,33 @@ class StationOpenApiRedisServiceImplTest {
   }
 
   @Test
-  @DisplayName("Redis 테스트[save-single]")
-  void saveSingle() {
-    // given
-    String stationId = "320";
-    double bikeParkingRate = 120;
-    BikeParkingInfoRedisDto bikeParkingInfoRedisDto = new BikeParkingInfoRedisDto(stationId, bikeParkingRate);
-
-    // when
-    ZSetOperations<String, String> zSetOperations = redisTemplate.opsForZSet();
-    boolean isSaved = zSetOperations.add(REDIS_STATION.getKey(), bikeParkingInfoRedisDto.getStationId(),
-        bikeParkingRate);
-    redisTemplate.expire(REDIS_STATION.getKey(), Duration.ofSeconds(1));
-
-    // then
-    assertTrue(isSaved);
-  }
-
-  @Test
-  @DisplayName("Redis 테스트[save-all]")
-  void saveAll() {
-    // given
-    double bikeParkingRate = 120;
-    BikeParkingInfoRedisDto bikeParkingInfoRedisDto = new BikeParkingInfoRedisDto("320", bikeParkingRate);
-    double bikeParkingRate2 = 98;
-    BikeParkingInfoRedisDto bikeParkingInfoRedisDto2 = new BikeParkingInfoRedisDto("104", bikeParkingRate2);
-
-    ZSetOperations<String, String> zSetOperations = redisTemplate.opsForZSet();
-    Set<TypedTuple<String>> set = new HashSet<>();
-    set.add(TypedTuple.of(bikeParkingInfoRedisDto.getStationId(), bikeParkingRate));
-    set.add(TypedTuple.of(bikeParkingInfoRedisDto2.getStationId(), bikeParkingRate2));
-    Long count = zSetOperations.add(REDIS_STATION.getKey(), set);
-    redisTemplate.expire(REDIS_STATION.getKey(), Duration.ofSeconds(1));
-
-    assertEquals(count, 2L);
-  }
-
-  @Test
   @DisplayName("Redis 테스트[redis-get]")
   void get() {
     // given
-    String stationId = "320";
+    Long stationId = 320L;
     double bikeParkingRate = 120;
-    BikeParkingInfoRedisDto bikeParkingInfoRedisDto = new BikeParkingInfoRedisDto(stationId, bikeParkingRate);
+    BikeParkingInfoDto bikeParkingInfoDto = new BikeParkingInfoDto(stationId,
+        bikeParkingRate);
 
     // when
     ZSetOperations<String, String> zSetOperations = redisTemplate.opsForZSet();
-    zSetOperations.add(REDIS_STATION.getKey(), bikeParkingInfoRedisDto.getStationId(), bikeParkingRate);
+    zSetOperations.add(REDIS_STATION.getKey(), String.valueOf(bikeParkingInfoDto.getStationId()),
+        bikeParkingRate);
     redisTemplate.expire(REDIS_STATION.getKey(), Duration.ofSeconds(1));
 
     // when
     Set<TypedTuple<String>> typedTuples = zSetOperations.rangeByScoreWithScores(
         REDIS_STATION.getKey(), 100, 1000);
 
-    List<BikeParkingInfoRedisDto> list = new ArrayList<>();
-    typedTuples.forEach(m -> list.add(BikeParkingInfoRedisDto.fromRedisData(m)));
+    List<BikeParkingInfoDto> list = new ArrayList<>();
+    typedTuples.forEach(m -> list.add(BikeParkingInfoDto.fromRedisData(m)));
 
     assertEquals(list.size(), 1);
     assertEquals(list.get(0).getStationId(), stationId);
     assertEquals(list.get(0).getBikeParkingRate(), bikeParkingRate);
   }
 
-  public Mono<String> getData(String dataType, int start, int end) {
+  public BikeListDto getBikeListApiData(String dataType, int start, int end) {
 
     return webClient.get().uri(uriBuilder ->
             uriBuilder
@@ -209,6 +185,18 @@ class StationOpenApiRedisServiceImplTest {
                 .path("/")
                 .build())
         .retrieve()
-        .bodyToMono(String.class);
+        .bodyToMono(BikeListDto.class).block();
+  }
+
+  public BikeStationMasterDto getBikeStationMaterData(String dataType, int start,
+      int end) {
+
+    return webClient.get().uri(uriBuilder ->
+            uriBuilder
+                .pathSegment(dataType, String.valueOf(start), String.valueOf(end))
+                .path("/")
+                .build())
+        .retrieve()
+        .bodyToMono(BikeStationMasterDto.class).block();
   }
 }

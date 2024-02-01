@@ -1,6 +1,6 @@
 package com.goo.bikerelocationproject.exception;
 
-import com.goo.bikerelocationproject.data.dto.StatusApiDto;
+import com.goo.bikerelocationproject.data.dto.api.ResultDto;
 import com.goo.bikerelocationproject.type.OpenApiDataType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,9 +19,9 @@ public class OpenApiException extends RuntimeException {
   private String code;
   private String message;
 
-  public OpenApiException(OpenApiDataType openApiDataType, StatusApiDto statusApiDto) {
+  public OpenApiException(ResultDto response, OpenApiDataType openApiDataType) {
     this.openApiDataType = openApiDataType.getData();
-    this.code = statusApiDto.getCode();
-    this.message = statusApiDto.getMessage();
+    this.code = response.getCode();
+    this.message = response.getMessage();
   }
 }
