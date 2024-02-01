@@ -7,7 +7,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class ParsingResultDto {
+public class ApiParsingResultDto {
 
   private int bikeListTotalCount;
   private int savedBikeStationMasterTotalCount;

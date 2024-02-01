@@ -1,5 +1,6 @@
 package com.goo.bikerelocationproject.data.entity;
 
+import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
@@ -24,4 +25,12 @@ public class Station {
   private String stationName;
   private String address1;
   private String address2;
+
+  public static Station fromApiDto(BikeListRowResponse dto) {
+    return Station.builder()
+        .id(Long.parseLong(dto.getStationId().substring(3)))
+        .rackTotalCount(dto.getRackTotalCount())
+        .stationName(dto.getStationName())
+        .build();
+  }
 }

@@ -2,46 +2,51 @@ package com.goo.bikerelocationproject.service.impl;
 
 import static com.goo.bikerelocationproject.type.ErrorCode.OPEN_API_ERROR;
 import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_LIST;
+import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_LIST_REDIS;
 import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_STATION_MASTER;
+import static com.goo.bikerelocationproject.type.RedisKey.REDIS_STATION;
 
-import com.goo.bikerelocationproject.data.dto.BikeListApiDto;
-import com.goo.bikerelocationproject.data.dto.BikeStationMasterApiDto;
-import com.goo.bikerelocationproject.data.dto.ParsingResultDto;
-import com.goo.bikerelocationproject.data.dto.StatusApiDto;
+import com.goo.bikerelocationproject.data.dto.api.ResultDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
+import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
+import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
 import com.goo.bikerelocationproject.data.entity.Station;
 import com.goo.bikerelocationproject.exception.OpenApiException;
 import com.goo.bikerelocationproject.exception.StationException;
 import com.goo.bikerelocationproject.repository.StationRepo;
 import com.goo.bikerelocationproject.service.StationOpenApiService;
 import com.goo.bikerelocationproject.type.OpenApiDataType;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Service
 @RequiredArgsConstructor
 public class StationOpenApiServiceImpl implements StationOpenApiService {
 
   private final StationRepo stationRepo;
+  private final RedisTemplate<String, String> redisTemplate;
+  private final WebClient webClient;
 
-  @Value("${bike-list-api-key}")
-  private String apiKey;
+  private final Logger LOGGER = LoggerFactory.getLogger(StationOpenApiServiceImpl.class);
 
   @Override
-  public ParsingResultDto getOpenApiData() {
+  public ApiParsingResultDto saveOpenApiData() {
 
-    ParsingResultDto result = new ParsingResultDto();
+    ApiParsingResultDto result = new ApiParsingResultDto();
     result.setBikeListTotalCount(saveBikeListData());
     result.setSavedBikeStationMasterTotalCount(saveBikeStationMasterData());
 
@@ -56,31 +61,34 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
     boolean isRemain = true;
 
     List<Station> stations = new ArrayList<>();
-    JsonObject objData = null;
+    BikeListDto bikeListDto = null;
+    ResultDto resultResponse = null;
     try {
       while (isRemain) {
         int start = 1000 * pageNum++ + 1;
         int end = 1000 * pageNum;
 
-        Gson gson = new Gson();
-        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_LIST.getData(), start, end));
-        JsonObject data = (JsonObject) objData.get("rentBikeStatus");
-        JsonArray jsonArray = (JsonArray) data.get("row");
+        bikeListDto = getBikeListData(BIKE_LIST.getData(), start, end);
+        if (bikeListDto.getRentBikeStatus() == null) {
+          resultResponse = bikeListDto.getResult();
+        } else {
+          resultResponse = bikeListDto.getRentBikeStatus().getResult();
+        }
 
-        int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
+        int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
         if (listTotalCount < 1000) {
           isRemain = false;
         }
         bikeListTotalCount += listTotalCount;
 
-        for (int i = 0; i < jsonArray.size(); i++) {
-          BikeListApiDto bikeListApiDto = gson.fromJson(jsonArray.get(i), BikeListApiDto.class);
-          stations.add(BikeListApiDto.toEntity(bikeListApiDto));
+        List<BikeListRowResponse> dataList = bikeListDto.getRentBikeStatus().getRow();
+        for (BikeListRowResponse data : dataList) {
+          stations.add(Station.fromApiDto(data));
         }
       }
     } catch (Exception e) {
 
-      throwException(objData, BIKE_LIST);
+      throwException2(resultResponse, BIKE_LIST);
     }
     stationRepo.saveAll(stations);
 
@@ -94,34 +102,39 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
     int pageNum = 0;
     boolean isRemain = true;
 
-    JsonObject objData = null;
+    BikeStationMasterDto bikeStationMasterDto = null;
+    ResultDto resultResponse = null;
     try {
       while (isRemain) {
         int start = 1000 * pageNum++ + 1;
         int end = 1000 * pageNum;
 
-        Gson gson = new Gson();
-        objData = (JsonObject) new JsonParser().parse(getJsonString(BIKE_STATION_MASTER.getData(), start, end));
-        JsonObject data = (JsonObject) objData.get("bikeStationMaster");
-        JsonArray jsonArray = (JsonArray) data.get("row");
+        bikeStationMasterDto = getBikeStationMasterData(
+            BIKE_STATION_MASTER.getData(), start, end);
+        if (bikeStationMasterDto.getBikeStationMaster() == null) {
+          resultResponse = bikeStationMasterDto.getResult();
+        } else {
+          bikeStationMasterDto.getBikeStationMaster().getResult();
+        }
 
-        int listTotalCount = Integer.parseInt(String.valueOf(data.get("list_total_count")));
+        int listTotalCount = bikeStationMasterDto.getBikeStationMaster()
+            .getListTotalCount();
         if (listTotalCount < end) {
           isRemain = false;
         }
 
-        for (int i = 0; i < jsonArray.size(); i++) {
-          BikeStationMasterApiDto bikeStationMasterApiDto =
-              gson.fromJson(jsonArray.get(i), BikeStationMasterApiDto.class);
+        List<BikeStationMasterRowResponse> dataList = bikeStationMasterDto.getBikeStationMaster()
+            .getRow();
+        for (int i = 0; i < dataList.size(); i++) {
 
           Optional<Station> station =
               stationRepo.findById(
-                  Long.valueOf(bikeStationMasterApiDto.getStationId().substring(3)));
+                  Long.valueOf(dataList.get(i).getStationId().substring(3)));
 
           if (station.isPresent()) {
             Station selectedStation = station.get();
-            selectedStation.setAddress1(bikeStationMasterApiDto.getAddress1());
-            selectedStation.setAddress2(bikeStationMasterApiDto.getAddress2());
+            selectedStation.setAddress1(dataList.get(i).getAddress1());
+            selectedStation.setAddress2(dataList.get(i).getAddress2());
             stationRepo.save(selectedStation);
             bikeStationMasterTotalCount++;
           }
@@ -129,35 +142,81 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
       }
     } catch (Exception e) {
 
-      throwException(objData, BIKE_STATION_MASTER);
+      throwException2(resultResponse, BIKE_STATION_MASTER);
     }
     return bikeStationMasterTotalCount;
   }
 
-  void throwException(JsonObject objData, OpenApiDataType openApiDataType) {
-    if (objData != null) {
-      Gson gson = new Gson();
-      JsonObject statusInfo = (JsonObject) objData.get("RESULT");
-      StatusApiDto statusApiDto = gson.fromJson(statusInfo, StatusApiDto.class);
-      throw new OpenApiException(openApiDataType, statusApiDto.getCode(), statusApiDto.getMessage());
-    }
+  @Override
+  public void saveBikeParkingData() {
 
+    int pageNum = 0;
+    boolean isRemain = true;
+
+    ZSetOperations<String, String> operations = redisTemplate.opsForZSet();
+    Set<TypedTuple<String>> set = new HashSet<>();
+    BikeListDto bikeListDto = null;
+    ResultDto resultResponse = null;
+    try {
+      while (isRemain) {
+        int start = 1000 * pageNum++ + 1;
+        int end = 1000 * pageNum;
+
+        bikeListDto = getBikeListData(BIKE_LIST.getData(), start, end);
+        if (bikeListDto.getRentBikeStatus() == null) {
+          resultResponse = bikeListDto.getResult();
+        } else {
+          resultResponse = bikeListDto.getRentBikeStatus().getResult();
+        }
+
+        int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
+        if (listTotalCount < 1000) {
+          isRemain = false;
+        }
+
+        List<BikeListRowResponse> dataList = bikeListDto.getRentBikeStatus().getRow();
+        for (BikeListRowResponse data : dataList) {
+          set.add(TypedTuple.of(data.getStationId().substring(3), data.getBikeParkingRate()));
+        }
+      }
+    } catch (Exception e) {
+
+      throwException2(resultResponse, BIKE_LIST_REDIS);
+    }
+    operations.add(REDIS_STATION.getKey(), set);
+    redisTemplate.expire(REDIS_STATION.getKey(), Duration.ofMinutes(5));
+  }
+
+  void throwException2(ResultDto errorResponse, OpenApiDataType openApiDataType) {
+
+    if (errorResponse != null) {
+      throw new OpenApiException(errorResponse, openApiDataType);
+    }
     throw new StationException(OPEN_API_ERROR);
   }
 
   @Override
-  public String getJsonString(String dataType, int start, int end) {
+  public BikeListDto getBikeListData(String dataType, int start, int end) {
 
-    URI uri = UriComponentsBuilder
-        .fromUriString("http://openapi.seoul.go.kr:8088/")
-        .path("/{apiKey}/json/{dataType}/{start}/{end}/")
-        .encode()
-        .build()
-        .expand(apiKey, dataType, start, end)
-        .toUri();
+    return webClient.get().uri(uriBuilder ->
+            uriBuilder
+                .pathSegment(dataType, String.valueOf(start), String.valueOf(end))
+                .path("/")
+                .build())
+        .retrieve()
+        .bodyToMono(BikeListDto.class).block();
+  }
 
-    RestTemplate restTemplate = new RestTemplate();
-    ResponseEntity<String> response = restTemplate.getForEntity(uri, String.class);
-    return response.getBody();
+  @Override
+  public BikeStationMasterDto getBikeStationMasterData(String dataType, int start,
+      int end) {
+
+    return webClient.get().uri(uriBuilder ->
+            uriBuilder
+                .pathSegment(dataType, String.valueOf(start), String.valueOf(end))
+                .path("/")
+                .build())
+        .retrieve()
+        .bodyToMono(BikeStationMasterDto.class).block();
   }
 }

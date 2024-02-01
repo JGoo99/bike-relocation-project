@@ -1,11 +1,20 @@
 package com.goo.bikerelocationproject.service;
 
-import com.goo.bikerelocationproject.data.dto.ParsingResultDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
+import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
+import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
 
 public interface StationOpenApiService {
 
-  ParsingResultDto getOpenApiData();
+  ApiParsingResultDto saveOpenApiData();
+
   int saveBikeListData();
+
   int saveBikeStationMasterData();
-  String getJsonString(String a, int b, int c);
+
+  BikeListDto getBikeListData(String dataType, int start, int end);
+
+  BikeStationMasterDto getBikeStationMasterData(String dataType, int start, int end);
+
+  void saveBikeParkingData();
 }
