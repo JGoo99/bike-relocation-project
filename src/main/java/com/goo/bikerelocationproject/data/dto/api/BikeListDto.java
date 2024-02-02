@@ -14,7 +14,7 @@ public class BikeListDto {
   private RentBikeStatus rentBikeStatus;
 
   @JsonProperty("RESULT")
-  private ResultDto result;
+  private ResultDto errorResult;
 
   @Getter
   @ToString

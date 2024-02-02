@@ -6,12 +6,12 @@ import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_LIST_REDIS
 import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_STATION_MASTER;
 import static com.goo.bikerelocationproject.type.RedisKey.REDIS_STATION;
 
-import com.goo.bikerelocationproject.data.dto.api.ResultDto;
+import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
 import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
 import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
 import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
 import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
-import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
+import com.goo.bikerelocationproject.data.dto.api.ResultDto;
 import com.goo.bikerelocationproject.data.entity.Station;
 import com.goo.bikerelocationproject.exception.OpenApiException;
 import com.goo.bikerelocationproject.exception.StationException;
@@ -62,7 +62,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
     List<Station> stations = new ArrayList<>();
     BikeListDto bikeListDto = null;
-    ResultDto resultResponse = null;
+    ResultDto errorResult = null;
     try {
       while (isRemain) {
         int start = 1000 * pageNum++ + 1;
@@ -70,9 +70,9 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
         bikeListDto = getBikeListData(BIKE_LIST.getData(), start, end);
         if (bikeListDto.getRentBikeStatus() == null) {
-          resultResponse = bikeListDto.getResult();
+          errorResult = bikeListDto.getErrorResult();
         } else {
-          resultResponse = bikeListDto.getRentBikeStatus().getResult();
+          errorResult = bikeListDto.getRentBikeStatus().getResult();
         }
 
         int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
@@ -88,7 +88,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
       }
     } catch (Exception e) {
 
-      throwException2(resultResponse, BIKE_LIST);
+      throwException2(errorResult, BIKE_LIST);
     }
     stationRepo.saveAll(stations);
 
@@ -103,7 +103,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
     boolean isRemain = true;
 
     BikeStationMasterDto bikeStationMasterDto = null;
-    ResultDto resultResponse = null;
+    ResultDto errorResult = null;
     try {
       while (isRemain) {
         int start = 1000 * pageNum++ + 1;
@@ -112,7 +112,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
         bikeStationMasterDto = getBikeStationMasterData(
             BIKE_STATION_MASTER.getData(), start, end);
         if (bikeStationMasterDto.getBikeStationMaster() == null) {
-          resultResponse = bikeStationMasterDto.getResult();
+          errorResult = bikeStationMasterDto.getResult();
         } else {
           bikeStationMasterDto.getBikeStationMaster().getResult();
         }
@@ -142,7 +142,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
       }
     } catch (Exception e) {
 
-      throwException2(resultResponse, BIKE_STATION_MASTER);
+      throwException2(errorResult, BIKE_STATION_MASTER);
     }
     return bikeStationMasterTotalCount;
   }
@@ -156,7 +156,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
     ZSetOperations<String, String> operations = redisTemplate.opsForZSet();
     Set<TypedTuple<String>> set = new HashSet<>();
     BikeListDto bikeListDto = null;
-    ResultDto resultResponse = null;
+    ResultDto errorResult = null;
     try {
       while (isRemain) {
         int start = 1000 * pageNum++ + 1;
@@ -164,9 +164,9 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
         bikeListDto = getBikeListData(BIKE_LIST.getData(), start, end);
         if (bikeListDto.getRentBikeStatus() == null) {
-          resultResponse = bikeListDto.getResult();
+          errorResult = bikeListDto.getErrorResult();
         } else {
-          resultResponse = bikeListDto.getRentBikeStatus().getResult();
+          errorResult = bikeListDto.getRentBikeStatus().getResult();
         }
 
         int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
@@ -181,7 +181,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
       }
     } catch (Exception e) {
 
-      throwException2(resultResponse, BIKE_LIST_REDIS);
+      throwException2(errorResult, BIKE_LIST_REDIS);
     }
     operations.add(REDIS_STATION.getKey(), set);
     redisTemplate.expire(REDIS_STATION.getKey(), Duration.ofMinutes(5));

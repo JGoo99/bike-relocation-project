@@ -1,8 +1,8 @@
 package com.goo.bikerelocationproject.service;
 
+import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
 import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
 import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
-import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
 
 public interface StationOpenApiService {
 

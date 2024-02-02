@@ -51,9 +51,9 @@ class StationOpenApiRedisServiceImplTest {
     BikeListDto bikeListDto = getBikeListApiData(BIKE_LIST.getData(), 1, 5);
 
     int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
-    List<BikeListRowResponse> bikeListRowRespons = bikeListDto.getRentBikeStatus()
+    List<BikeListRowResponse> bikeListRowResponses = bikeListDto.getRentBikeStatus()
         .getRow();
-    for (BikeListRowResponse bikeListRowResponse : bikeListRowRespons) {
+    for (BikeListRowResponse bikeListRowResponse : bikeListRowResponses) {
       stations.add(Station.fromApiDto(bikeListRowResponse));
     }
 
@@ -73,8 +73,8 @@ class StationOpenApiRedisServiceImplTest {
 
     // then
     assertNull(bikeListDto.getRentBikeStatus());
-    assertEquals(bikeListDto.getResult().getCode(), "ERROR-334");
-    assertEquals(bikeListDto.getResult().getMessage(), "요청종료위치 보다 요청시작위치가 더 큽니다.\n"
+    assertEquals(bikeListDto.getErrorResult().getCode(), "ERROR-334");
+    assertEquals(bikeListDto.getErrorResult().getMessage(), "요청종료위치 보다 요청시작위치가 더 큽니다.\n"
         + "요청시작위치 정수 값은 요청종료위치 정수 값보다 같거나 작아야 합니다.");
   }
 
