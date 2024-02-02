@@ -6,12 +6,12 @@ import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_LIST_REDIS
 import static com.goo.bikerelocationproject.type.OpenApiDataType.BIKE_STATION_MASTER;
 import static com.goo.bikerelocationproject.type.RedisKey.REDIS_STATION;
 
-import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
-import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
-import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
-import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
-import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
-import com.goo.bikerelocationproject.data.dto.api.ResultDto;
+import com.goo.bikerelocationproject.data.dto.OpenApiParsingResultDto;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeListDto;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeListDto.RentBikeStatus.BikeListRowResponse;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeStationMasterDto;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
+import com.goo.bikerelocationproject.data.dto.openapi.ResultDto;
 import com.goo.bikerelocationproject.data.entity.Station;
 import com.goo.bikerelocationproject.exception.OpenApiException;
 import com.goo.bikerelocationproject.exception.StationException;
@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -41,12 +42,10 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
   private final RedisTemplate<String, String> redisTemplate;
   private final WebClient webClient;
 
-  private final Logger LOGGER = LoggerFactory.getLogger(StationOpenApiServiceImpl.class);
-
   @Override
-  public ApiParsingResultDto saveOpenApiData() {
+  public OpenApiParsingResultDto saveOpenApiData() {
 
-    ApiParsingResultDto result = new ApiParsingResultDto();
+    OpenApiParsingResultDto result = new OpenApiParsingResultDto();
     result.setBikeListTotalCount(saveBikeListData());
     result.setSavedBikeStationMasterTotalCount(saveBikeStationMasterData());
 
@@ -125,16 +124,16 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
         List<BikeStationMasterRowResponse> dataList = bikeStationMasterDto.getBikeStationMaster()
             .getRow();
-        for (int i = 0; i < dataList.size(); i++) {
+        for (BikeStationMasterRowResponse data : dataList) {
 
           Optional<Station> station =
               stationRepo.findById(
-                  Long.valueOf(dataList.get(i).getStationId().substring(3)));
+                  Long.valueOf(data.getStationId().substring(3)));
 
           if (station.isPresent()) {
             Station selectedStation = station.get();
-            selectedStation.setAddress1(dataList.get(i).getAddress1());
-            selectedStation.setAddress2(dataList.get(i).getAddress2());
+            selectedStation.setAddress1(data.getAddress1());
+            selectedStation.setAddress2(data.getAddress2());
             stationRepo.save(selectedStation);
             bikeStationMasterTotalCount++;
           }
@@ -169,7 +168,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
           errorResult = bikeListDto.getRentBikeStatus().getResult();
         }
 
-        int listTotalCount = bikeListDto.getRentBikeStatus().getListTotalCount();
+        int listTotalCount = Objects.requireNonNull(bikeListDto.getRentBikeStatus()).getListTotalCount();
         if (listTotalCount < 1000) {
           isRemain = false;
         }

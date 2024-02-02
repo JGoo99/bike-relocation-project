@@ -1,6 +1,6 @@
 package com.goo.bikerelocationproject.data.entity;
 
-import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeListDto.RentBikeStatus.BikeListRowResponse;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;

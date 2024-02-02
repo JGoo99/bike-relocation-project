@@ -1,6 +1,6 @@
 package com.goo.bikerelocationproject.exception;
 
-import com.goo.bikerelocationproject.data.dto.api.ResultDto;
+import com.goo.bikerelocationproject.data.dto.openapi.ResultDto;
 import com.goo.bikerelocationproject.type.OpenApiDataType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

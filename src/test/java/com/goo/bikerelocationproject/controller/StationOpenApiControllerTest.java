@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
+import com.goo.bikerelocationproject.data.dto.OpenApiParsingResultDto;
 import com.goo.bikerelocationproject.service.impl.StationOpenApiServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +27,12 @@ class StationOpenApiControllerTest {
   @Test
   void saveOpenApiData() throws Exception {
     // given
-    ApiParsingResultDto apiParsingResultDto = new ApiParsingResultDto();
-    apiParsingResultDto.setSavedBikeStationMasterTotalCount(2725);
-    apiParsingResultDto.setBikeListTotalCount(2725);
+    OpenApiParsingResultDto openApiParsingResultDto = new OpenApiParsingResultDto();
+    openApiParsingResultDto.setSavedBikeStationMasterTotalCount(2725);
+    openApiParsingResultDto.setBikeListTotalCount(2725);
 
     given(stationOpenApiService.saveOpenApiData())
-        .willReturn(apiParsingResultDto);
+        .willReturn(openApiParsingResultDto);
 
     // when
     // then

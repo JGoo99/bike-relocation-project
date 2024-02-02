@@ -1,6 +1,6 @@
 package com.goo.bikerelocationproject.exception.handler;
 
-import com.goo.bikerelocationproject.data.dto.ApiErrorResponse;
+import com.goo.bikerelocationproject.data.dto.OpenApiErrorResponse;
 import com.goo.bikerelocationproject.data.dto.StationErrorResponse;
 import com.goo.bikerelocationproject.exception.OpenApiException;
 import com.goo.bikerelocationproject.exception.StationException;
@@ -17,10 +17,10 @@ public class GlobalExceptionHandler {
   private final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
   @ExceptionHandler(OpenApiException.class)
-  public ApiErrorResponse handleOpenApiException(OpenApiException e) {
+  public OpenApiErrorResponse handleOpenApiException(OpenApiException e) {
     LOGGER.error("[open-api error]: " + e);
 
-    return new ApiErrorResponse(e.getOpenApiDataType(), e.getCode(), e.getMessage());
+    return new OpenApiErrorResponse(e.getOpenApiDataType(), e.getCode(), e.getMessage());
   }
 
   @ExceptionHandler(StationException.class)

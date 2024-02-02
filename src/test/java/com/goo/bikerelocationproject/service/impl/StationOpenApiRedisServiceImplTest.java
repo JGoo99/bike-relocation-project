@@ -6,17 +6,18 @@ import static com.goo.bikerelocationproject.type.RedisKey.REDIS_STATION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import com.goo.bikerelocationproject.data.dto.api.BikeListDto;
-import com.goo.bikerelocationproject.data.dto.api.BikeListDto.RentBikeStatus.BikeListRowResponse;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeListDto;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeListDto.RentBikeStatus.BikeListRowResponse;
 import com.goo.bikerelocationproject.data.dto.BikeParkingInfoDto;
-import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto;
-import com.goo.bikerelocationproject.data.dto.api.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeStationMasterDto;
+import com.goo.bikerelocationproject.data.dto.openapi.BikeStationMasterDto.BikeStationMaster.BikeStationMasterRowResponse;
 import com.goo.bikerelocationproject.data.entity.Station;
 import com.goo.bikerelocationproject.repository.StationRepo;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -170,7 +171,7 @@ class StationOpenApiRedisServiceImplTest {
         REDIS_STATION.getKey(), 100, 1000);
 
     List<BikeParkingInfoDto> list = new ArrayList<>();
-    typedTuples.forEach(m -> list.add(BikeParkingInfoDto.fromRedisData(m)));
+    Objects.requireNonNull(typedTuples).forEach(m -> list.add(BikeParkingInfoDto.fromRedisData(m)));
 
     assertEquals(list.size(), 1);
     assertEquals(list.get(0).getStationId(), stationId);

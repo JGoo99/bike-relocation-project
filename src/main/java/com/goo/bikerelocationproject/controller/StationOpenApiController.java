@@ -1,6 +1,6 @@
 package com.goo.bikerelocationproject.controller;
 
-import com.goo.bikerelocationproject.data.dto.ApiParsingResultDto;
+import com.goo.bikerelocationproject.data.dto.OpenApiParsingResultDto;
 import com.goo.bikerelocationproject.service.impl.StationOpenApiServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +18,9 @@ public class StationOpenApiController {
 
   @Scheduled(cron = "0 0 0 * * *")
   @PostMapping("/open-api-station")
-  public ResponseEntity<ApiParsingResultDto> saveOpenApiData() {
+  public ResponseEntity<OpenApiParsingResultDto> saveOpenApiData() {
 
-    ApiParsingResultDto parsingResult = stationApiService.saveOpenApiData();
+    OpenApiParsingResultDto parsingResult = stationApiService.saveOpenApiData();
 
     return ResponseEntity.ok(parsingResult);
   }

@@ -1,4 +1,4 @@
-package com.goo.bikerelocationproject.data.dto.api;
+package com.goo.bikerelocationproject.data.dto.openapi;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
