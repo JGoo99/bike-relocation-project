@@ -26,8 +26,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
@@ -40,6 +38,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
   private final StationRepo stationRepo;
   private final RedisTemplate<String, String> redisTemplate;
+  private final ZSetOperations<String, String> zSetOperations;
   private final WebClient webClient;
 
   @Override
@@ -152,7 +151,6 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
     int pageNum = 0;
     boolean isRemain = true;
 
-    ZSetOperations<String, String> operations = redisTemplate.opsForZSet();
     Set<TypedTuple<String>> set = new HashSet<>();
     BikeListDto bikeListDto = null;
     ResultDto errorResult = null;
@@ -168,7 +166,8 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
           errorResult = bikeListDto.getRentBikeStatus().getResult();
         }
 
-        int listTotalCount = Objects.requireNonNull(bikeListDto.getRentBikeStatus()).getListTotalCount();
+        int listTotalCount = Objects.requireNonNull(bikeListDto.getRentBikeStatus())
+            .getListTotalCount();
         if (listTotalCount < 1000) {
           isRemain = false;
         }
@@ -182,7 +181,7 @@ public class StationOpenApiServiceImpl implements StationOpenApiService {
 
       throwException2(errorResult, BIKE_LIST_REDIS);
     }
-    operations.add(REDIS_STATION.getKey(), set);
+    zSetOperations.add(REDIS_STATION.getKey(), set);
     redisTemplate.expire(REDIS_STATION.getKey(), Duration.ofMinutes(5));
   }
 
