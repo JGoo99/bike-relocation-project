@@ -3,3 +3,11 @@ POST http://localhost:8080/api/open-api-station
 
 ### StationOpenApiController - getOpenApiRedisData()
 POST http://localhost:8080/api/open-api-parking
+
+### StationController - getList(pageable)
+GET http://localhost:8080/api/station/list?size=10&page=0
+Content-Type: application/json
+
+### StationController - getDetails(stationId)
+GET http://localhost:8080/api/station/3277
+Content-Type: application/json
