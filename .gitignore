@@ -39,3 +39,5 @@ out/
 ### Api Key ###
 /src/main/resources/application.yml
 /src/main/resources/application-api-key.yml
+/src/main/resources/application-jwt-key.yml
+/src/main/resources/application-oauth.yml

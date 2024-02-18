@@ -10,7 +10,7 @@ spring:
     generate-ddl: true
     show-sql: true
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
 
   profiles:
-    include: api-key
+    include: api-key, jwt-key, oauth
